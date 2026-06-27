@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FX ロット計算ツール</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="FX計算">
+<meta name="theme-color" content="#f5f4f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1a18" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%232563eb'/%3E%3Ctext x='90' y='115' font-size='90' text-anchor='middle' font-family='Helvetica Neue,sans-serif' font-weight='700' fill='white'%3EF%3C/text%3E%3C/svg%3E">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f4f1;
+    --surface: #ffffff;
+    --surface2: #f9f8f6;
+    --border: #e2e0da;
+    --text: #1a1a18;
+    --muted: #6b6a66;
+    --hint: #a09f9b;
+    --accent: #2563eb;
+    --accent-bg: #eff4ff;
+    --success: #16a34a;
+    --success-bg: #f0fdf4;
+    --warn: #d97706;
+    --warn-bg: #fffbeb;
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a18;
+      --surface: #242422;
+      --surface2: #2c2c2a;
+      --border: #3a3a36;
+      --text: #f0efe9;
+      --muted: #8f8e89;
+      --hint: #5c5b57;
+      --accent: #60a5fa;
+      --accent-bg: #1e2a3d;
+      --success: #4ade80;
+      --success-bg: #0f2318;
+      --warn: #fbbf24;
+      --warn-bg: #231c0c;
+      --danger: #f87171;
+      --danger-bg: #2a0f0f;
+    }
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .container {
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 1.75rem;
+  }
+
+  header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: var(--text);
+  }
+
+  header p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--hint);
+    margin-bottom: 0.875rem;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .field label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  input[type="number"],
+  select {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+
+  input[type="number"]:focus,
+  select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  }
+
+  .max-loss-display {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .max-loss-display .amount {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .max-loss-display .unit {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .rate-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  .rate-badge {
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    font-family: 'Menlo', 'Monaco', monospace;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .refresh-btn {
+    height: 32px;
+    padding: 0 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+    transition: background 0.1s, color 0.1s;
+    flex-shrink: 0;
+  }
+
+  .refresh-btn:hover {
+    background: var(--surface2);
+    color: var(--text);
+  }
+
+  .status {
+    font-size: 12px;
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+  }
+
+  .status.ok { background: var(--success-bg); color: var(--success); }
+  .status.warn { background: var(--warn-bg); color: var(--warn); }
+  .status.err { background: var(--danger-bg); color: var(--danger); }
+
+  .result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .metric {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.875rem 1rem;
+  }
+
+  .metric .lbl {
+    font-size: 11px;
+    color: var(--hint);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .metric .val {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  .metric.highlight {
+    background: var(--accent-bg);
+    border-color: rgba(37,99,235,0.2);
+  }
+
+  .metric.highlight .val {
+    color: var(--accent);
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 14px 0;
+  }
+
+  .note {
+    font-size: 12px;
+    color: var(--hint);
+    line-height: 1.7;
+  }
+
+  .timestamp {
+    font-size: 11px;
+    color: var(--hint);
+    margin-top: 1.25rem;
+    text-align: right;
+  }
+
+  optgroup { font-size: 11px; color: var(--hint); }
+
+  @media (max-width: 480px) {
+    .row { grid-template-columns: 1fr; }
+    .result-grid { grid-template-columns: 1fr 1fr; }
+    .metric .val { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>FX ロット計算ツール</h1>
+    <p>USD建て口座（Exness）対応 · 月初残高5%リスク管理</p>
+  </header>
+
+  <div class="card">
+    <div class="card-label">口座・リスク設定</div>
+    <div class="row">
+      <div class="field">
+        <label>月初残高 (USD)</label>
+        <input type="number" id="balance" value="10000" min="100" step="100">
+      </div>
+      <div class="field">
+        <label>リスク率 (%)</label>
+        <input type="number" id="riskPct" value="5" min="0.1" max="100" step="0.1">
+      </div>
+    </div>
+    <div class="field">
+      <label>今月の最大損失額</label>
+      <div class="max-loss-display">
+        <span class="amount" id="maxLoss">$500.00</span>
+        <span class="unit">USD / トレード</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">通貨ペア・ストップ幅</div>
+    <div class="row">
+      <div class="field">
+        <label>通貨ペア</label>
+        <select id="pair">
+          <optgroup label="── メジャーペア">
+            <option value="EUR/USD">EUR/USD</option>
+            <option value="GBP/USD">GBP/USD</option>
+            <option value="USD/JPY">USD/JPY</option>
+            <option value="USD/CHF">USD/CHF</option>
+            <option value="AUD/USD">AUD/USD</option>
+            <option value="USD/CAD">USD/CAD</option>
+            <option value="NZD/USD">NZD/USD</option>
+          </optgroup>
+          <optgroup label="── クロス（欧州）">
+            <option value="EUR/GBP">EUR/GBP</option>
+            <option value="EUR/JPY">EUR/JPY</option>
+            <option value="EUR/CHF">EUR/CHF</option>
+            <option value="EUR/AUD" selected>EUR/AUD</option>
+            <option value="EUR/CAD">EUR/CAD</option>
+            <option value="EUR/NZD">EUR/NZD</option>
+            <option value="GBP/JPY">GBP/JPY</option>
+            <option value="GBP/CHF">GBP/CHF</option>
+            <option value="GBP/AUD">GBP/AUD</option>
+            <option value="GBP/CAD">GBP/CAD</option>
+            <option value="GBP/NZD">GBP/NZD</option>
+          </optgroup>
+          <optgroup label="── クロス（その他）">
+            <option value="AUD/JPY">AUD/JPY</option>
+            <option value="AUD/CHF">AUD/CHF</option>
+            <option value="AUD/CAD">AUD/CAD</option>
+            <option value="AUD/NZD">AUD/NZD</option>
+            <option value="NZD/JPY">NZD/JPY</option>
+            <option value="NZD/CHF">NZD/CHF</option>
+            <option value="NZD/CAD">NZD/CAD</option>
+            <option value="CAD/JPY">CAD/JPY</option>
+            <option value="CAD/CHF">CAD/CHF</option>
+            <option value="CHF/JPY">CHF/JPY</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="field">
+        <label>ストップ幅 (pips)</label>
+        <input type="number" id="stopPips" value="30" min="1" step="1">
+      </div>
+    </div>
+
+    <div class="rate-row">
+      <span class="rate-badge" id="rateDisplay">取得中...</span>
+      <button class="refresh-btn" onclick="fetchRates()">↻ レート更新</button>
+    </div>
+    <div id="rateStatus" class="status warn">レートを取得中...</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">計算結果</div>
+    <div class="result-grid">
+      <div class="metric highlight">
+        <div class="lbl">推奨ロット数</div>
+        <div class="val" id="lotResult">—</div>
+      </div>
+      <div class="metric">
+        <div class="lbl">1pipの価値 (USD)</div>
+        <div class="val" id="pipValue">—</div>
+      </div>
+      <div class="metric">
+        <div class="lbl">実際の最大損失</div>
+        <div class="val" id="lossUSD">—</div>
+      </div>
+      <div class="metric">
+        <div class="lbl">証拠金目安 (USD)</div>
+        <div class="val" id="margin">—</div>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="note">
+      計算式: 最大損失額 ÷ (ストップ幅 × 1pipの価値) = ロット数<br>
+      ロットは切り捨て（過剰リスク防止）。証拠金目安はレバレッジ100倍で算出。<br>
+      Exness ZeroAccountはゼロカット制度あり。
+    </div>
+  </div>
+
+  <div class="timestamp" id="timestamp"></div>
+
+</div>
+
+<script>
+const rates = {};
+let ratesLoaded = false;
+
+async function tryFetch(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+function applyRates(usd) {
+  ['eur','gbp','aud','nzd','cad','chf','jpy'].forEach(key => {
+    if (usd[key]) rates[key.toUpperCase()] = usd[key];
+  });
+  rates['USD'] = 1;
+}
+
+async function fetchRates() {
+  const statusEl = document.getElementById('rateStatus');
+  const rateDisplay = document.getElementById('rateDisplay');
+  statusEl.className = 'status warn';
+  statusEl.textContent = 'レートを取得中...';
+  rateDisplay.textContent = '取得中...';
+
+  const apis = [
+    async () => {
+      const d = await tryFetch('https://api.exchangerate-api.com/v4/latest/USD');
+      const usd = {};
+      Object.entries(d.rates).forEach(([k,v]) => { usd[k.toLowerCase()] = v; });
+      return usd;
+    },
+    async () => {
+      const d = await tryFetch('https://open.er-api.com/v6/latest/USD');
+      const usd = {};
+      Object.entries(d.rates).forEach(([k,v]) => { usd[k.toLowerCase()] = v; });
+      return usd;
+    },
+    async () => {
+      const d = await tryFetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+      return d.usd;
+    }
+  ];
+
+  for (const api of apis) {
+    try {
+      const usd = await api();
+      applyRates(usd);
+      ratesLoaded = true;
+      const ts = new Date().toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+      statusEl.className = 'status ok';
+      statusEl.textContent = 'レート取得成功';
+      document.getElementById('timestamp').textContent = '最終更新: ' + ts;
+      calculate();
+      return;
+    } catch(e) {
+      continue;
+    }
+  }
+
+  statusEl.className = 'status err';
+  statusEl.textContent = 'レート取得に失敗しました。ネットワーク接続を確認してください。';
+  rateDisplay.textContent = '取得失敗';
+  ratesLoaded = false;
+  calculate();
+}
+
+function getPipValueInUSD(pair) {
+  const [base, quote] = pair.split('/');
+  const isJPY = quote === 'JPY';
+  const pipSize = isJPY ? 0.01 : 0.0001;
+  const lotSize = 100000;
+  const pipInQuote = pipSize * lotSize;
+
+  if (quote === 'USD') return pipInQuote;
+  if (!ratesLoaded || !rates[quote]) return null;
+  return pipInQuote / rates[quote];
+}
+
+function updateRateDisplay(pair) {
+  const [base, quote] = pair.split('/');
+  const el = document.getElementById('rateDisplay');
+  if (!ratesLoaded) { el.textContent = 'レート未取得'; return; }
+
+  const rb = rates[base], rq = rates[quote];
+  if (base === 'USD' && rq) {
+    el.textContent = `USD/${quote} = ${rq.toFixed(4)}`;
+  } else if (quote === 'USD' && rb) {
+    el.textContent = `${base}/USD = ${(1/rb).toFixed(4)}`;
+  } else if (rb && rq) {
+    const cross = rq / rb;
+    el.textContent = `${pair} ≈ ${cross.toFixed(4)}  (経由USD)`;
+  } else {
+    el.textContent = 'レートなし';
+  }
+}
+
+function calculate() {
+  const balance = parseFloat(document.getElementById('balance').value) || 0;
+  const riskPct = parseFloat(document.getElementById('riskPct').value) || 5;
+  const stopPips = parseFloat(document.getElementById('stopPips').value) || 0;
+  const pair = document.getElementById('pair').value;
+
+  const maxLoss = balance * riskPct / 100;
+  document.getElementById('maxLoss').textContent = '$' + maxLoss.toFixed(2);
+
+  updateRateDisplay(pair);
+
+  const pipVal = getPipValueInUSD(pair);
+
+  if (!pipVal || stopPips <= 0) {
+    ['lotResult','lossUSD','margin'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+    document.getElementById('pipValue').textContent = pipVal ? '$' + pipVal.toFixed(3) : '—';
+    return;
+  }
+
+  const lots = maxLoss / (stopPips * pipVal);
+  const roundedLots = Math.floor(lots * 100) / 100;
+  const actualLoss = roundedLots * stopPips * pipVal;
+
+  const [base] = pair.split('/');
+  let baseToUSD = rates[base] ? 1 / rates[base] : 1;
+  const margin = roundedLots * 100000 * baseToUSD / 100;
+
+  document.getElementById('lotResult').textContent = roundedLots.toFixed(2) + ' lot';
+  document.getElementById('pipValue').textContent = '$' + pipVal.toFixed(3);
+  document.getElementById('lossUSD').textContent = '$' + actualLoss.toFixed(2);
+  document.getElementById('margin').textContent = '$' + margin.toFixed(2);
+}
+
+document.getElementById('balance').addEventListener('input', calculate);
+document.getElementById('riskPct').addEventListener('input', calculate);
+document.getElementById('stopPips').addEventListener('input', calculate);
+document.getElementById('pair').addEventListener('change', calculate);
+
+fetchRates();
+</script>
+</body>
+</html>
